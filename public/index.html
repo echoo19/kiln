@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#070708" />
+  <title>kiln</title>
+  <link rel="manifest" href="/manifest.json" />
+  <!-- PNG, not SVG: some platforms rasterize an app window's taskbar icon
+       from the favicon and cannot read SVG -->
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/kiln-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/icons/kiln-512.png" />
+  <link rel="stylesheet" href="/vendor/xterm/css/xterm.css" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <svg id="icon-defs" aria-hidden="true" style="display:none">
+    <defs>
+      <symbol id="i-claude" viewBox="0 0 24 24">
+        <path fill="currentColor" d="m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z"/>
+      </symbol>
+      <symbol id="i-openai" viewBox="0 0 24 24">
+        <path fill="currentColor" fill-rule="evenodd" d="M9.205 8.658v-2.26c0-.19.072-.333.238-.428l4.543-2.616c.619-.357 1.356-.523 2.117-.523 2.854 0 4.662 2.212 4.662 4.566 0 .167 0 .357-.024.547l-4.71-2.759a.797.797 0 00-.856 0l-5.97 3.473zm10.609 8.8V12.06c0-.333-.143-.57-.429-.737l-5.97-3.473 1.95-1.118a.433.433 0 01.476 0l4.543 2.617c1.309.76 2.189 2.378 2.189 3.948 0 1.808-1.07 3.473-2.76 4.163zM7.802 12.703l-1.95-1.142c-.167-.095-.239-.238-.239-.428V5.899c0-2.545 1.95-4.472 4.591-4.472 1 0 1.927.333 2.712.928L8.23 5.067c-.285.166-.428.404-.428.737v6.898zM12 15.128l-2.795-1.57v-3.33L12 8.658l2.795 1.57v3.33L12 15.128zm1.796 7.23c-1 0-1.927-.332-2.712-.927l4.686-2.712c.285-.166.428-.404.428-.737v-6.898l1.974 1.142c.167.095.238.238.238.428v5.233c0 2.545-1.974 4.472-4.614 4.472zm-5.637-5.303l-4.544-2.617c-1.308-.761-2.188-2.378-2.188-3.948A4.482 4.482 0 014.21 6.327v5.423c0 .333.143.571.428.738l5.947 3.449-1.95 1.118a.432.432 0 01-.476 0zm-.262 3.9c-2.688 0-4.662-2.021-4.662-4.519 0-.19.024-.38.047-.57l4.686 2.71c.286.167.571.167.856 0l5.97-3.448v2.26c0 .19-.07.333-.237.428l-4.543 2.616c-.619.357-1.356.523-2.117.523zm5.899 2.83a5.947 5.947 0 005.827-4.756C22.287 18.339 24 15.84 24 13.296c0-1.665-.713-3.282-1.998-4.448.119-.5.19-.999.19-1.498 0-3.401-2.759-5.947-5.946-5.947-.642 0-1.26.095-1.88.31A5.962 5.962 0 0010.205 0a5.947 5.947 0 00-5.827 4.757C1.713 5.447 0 7.945 0 10.49c0 1.666.713 3.283 1.998 4.448-.119.5-.19 1-.19 1.499 0 3.401 2.759 5.946 5.946 5.946.642 0 1.26-.095 1.88-.309a5.96 5.96 0 004.162 1.713z"/>
+      </symbol>
+      <symbol id="i-folder" viewBox="0 0 20 20">
+        <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M3 5.5A1.5 1.5 0 0 1 4.5 4h3.2l1.8 2h6A1.5 1.5 0 0 1 17 7.5v6a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 13.5Z"/>
+      </symbol>
+      <symbol id="i-prompt" viewBox="0 0 20 20">
+        <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M4 4.5h12A1.5 1.5 0 0 1 17.5 6v6a1.5 1.5 0 0 1-1.5 1.5H9.5L6 16.5v-3H4A1.5 1.5 0 0 1 2.5 12V6A1.5 1.5 0 0 1 4 4.5Z M6.5 8h7 M6.5 10.5h4.5"/>
+      </symbol>
+      <symbol id="i-skill" viewBox="0 0 20 20">
+        <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M9 3.5 10.6 7.6 14.7 9.2 10.6 10.8 9 14.9 7.4 10.8 3.3 9.2 7.4 7.6Z"/>
+        <path fill="currentColor" d="m15.3 12.6.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8Z"/>
+      </symbol>
+      <symbol id="i-memory" viewBox="0 0 20 20">
+        <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <ellipse cx="10" cy="5.2" rx="6" ry="2.3"/>
+          <path d="M4 5.2v9.6c0 1.27 2.69 2.3 6 2.3s6-1.03 6-2.3V5.2"/>
+          <path d="M4 10c0 1.27 2.69 2.3 6 2.3s6-1.03 6-2.3"/>
+        </g>
+      </symbol>
+      <symbol id="i-usage" viewBox="0 0 20 20">
+        <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M4 16.5v-5 M9 16.5V4.5 M14 16.5v-8 M4 16.5h12.5"/>
+      </symbol>
+      <symbol id="i-history" viewBox="0 0 20 20">
+        <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="10" cy="10" r="6.5"/>
+          <path d="M10 6.8V10l2.6 1.6"/>
+        </g>
+      </symbol>
+      <symbol id="i-bell" viewBox="0 0 20 20">
+        <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 3.5c-2.6 0-4.4 1.9-4.4 4.4v2.9L4.2 13.4h11.6l-1.4-2.6V7.9c0-2.5-1.8-4.4-4.4-4.4Z"/>
+          <path d="M8.4 15.6a1.7 1.7 0 0 0 3.2 0"/>
+        </g>
+      </symbol>
+      <symbol id="i-bolt" viewBox="0 0 20 20">
+        <path fill="currentColor" d="M11.2 2.8 4.6 11.4h4.2L8.4 17.2 15.4 8.4h-4.4Z"/>
+      </symbol>
+      <symbol id="i-refresh" viewBox="0 0 20 20">
+        <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M16 10a6 6 0 1 1-1.8-4.3M16 3.5v3h-3"/>
+      </symbol>
+      <symbol id="i-pulse" viewBox="0 0 20 20">
+        <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M2.5 10h3.2l2-4.5 3 9 2.2-4.5h4.6"/>
+      </symbol>
+      <symbol id="i-home" viewBox="0 0 20 20">
+        <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M3.5 8.8 10 3.5l6.5 5.3V15a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 15Z M8 16.5v-4.3h4v4.3"/>
+      </symbol>
+      <symbol id="i-note" viewBox="0 0 20 20">
+        <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M5 3.5h10A1.5 1.5 0 0 1 16.5 5v7.5L12.5 16.5H5A1.5 1.5 0 0 1 3.5 15V5A1.5 1.5 0 0 1 5 3.5Z M16 12.5h-3.5V16 M6.5 7.5h7 M6.5 10.5h5"/>
+      </symbol>
+      <symbol id="i-key" viewBox="0 0 20 20">
+        <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="7" cy="7.5" r="3.5"/>
+          <path d="M9.6 10.1 16 16.5M13.4 13.9l1.8-1.8M15.2 15.7l1.4-1.4"/>
+        </g>
+      </symbol>
+      <symbol id="i-globe" viewBox="0 0 20 20">
+        <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+          <circle cx="10" cy="10" r="6.6"/>
+          <ellipse cx="10" cy="10" rx="3" ry="6.6"/>
+          <path d="M3.7 8h12.6M3.7 12h12.6"/>
+        </g>
+      </symbol>
+      <symbol id="i-plug" viewBox="0 0 20 20">
+        <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+              stroke-linejoin="round" d="M7 2.5v4m6-4v4M5 6.5h10v3a5 5 0 0 1-5 5 5 5 0 0 1-5-5v-3ZM10 14.5v3"/>
+      </symbol>
+      <symbol id="i-gear" viewBox="0 0 20 20">
+        <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="10" cy="10" r="2.4"/>
+          <path d="M10 2.8v2.1M10 15.1v2.1M2.8 10h2.1M15.1 10h2.1M4.9 4.9l1.5 1.5M13.6 13.6l1.5 1.5M15.1 4.9l-1.5 1.5M6.4 13.6l-1.5 1.5"/>
+        </g>
+      </symbol>
+    </defs>
+  </svg>
+
+  <header id="topbar">
+    <div id="brand">
+      <svg width="20" height="20" viewBox="0 0 16 16" aria-hidden="true">
+        <rect width="16" height="16" rx="3.5" fill="#141416"/>
+        <path d="M4 5.5 7 8l-3 2.5M8.5 11H12" stroke="#e8845a" stroke-width="1.6"
+              stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+      <span class="wordmark">kiln</span>
+    </div>
+    <div class="bar-sep"></div>
+    <!-- Hidden for now at the user's request; the home view itself still works,
+         so unhiding this button is all it takes to bring it back. -->
+    <button id="pill-home" class="pill home-pill" hidden title="Everything that is running">
+      <svg class="ic" width="14" height="14"><use href="#i-home"/></svg><span class="name">home</span>
+    </button>
+    <nav id="project-pills"></nav>
+    <button id="pill-add" class="pill ghost-pill" title="Add a project">+</button>
+    <div class="bar-spacer"></div>
+    <span id="attention" hidden></span>
+  </header>
+
+  <div id="shell">
+    <aside id="files-panel">
+      <header>
+        <svg class="ic" width="16" height="16"><use href="#i-folder"/></svg>
+        <h2>files</h2>
+        <span id="files-project" class="files-project"></span>
+        <button class="icon" id="files-refresh" title="Refresh">
+          <svg class="ic" width="14" height="14"><use href="#i-refresh"/></svg>
+        </button>
+      </header>
+      <div id="files-body"></div>
+      <footer id="files-foot">
+        <button id="btn-settings" title="project settings">
+          <svg class="ic" width="16" height="16"><use href="#i-gear"/></svg>
+          <span>project settings</span>
+        </button>
+      </footer>
+    </aside>
+
+    <main id="viewport">
+      <div id="canvas">
+        <svg id="edges" aria-hidden="true"></svg>
+      </div>
+
+      <div id="dock">
+        <button id="btn-dispatch" class="primary">
+          <svg class="ic" width="15" height="15"><use href="#i-bolt"/></svg>dispatch
+        </button>
+        <button id="btn-note" title="new note">
+          <svg class="ic" width="15" height="15"><use href="#i-note"/></svg>note
+        </button>
+        <span class="dock-sep"></span>
+        <button id="zoom-out" title="Zoom out">−</button>
+        <button id="zoom-reset" title="Back to 100%">100%</button>
+        <button id="zoom-in" title="Zoom in">+</button>
+        <button id="zoom-fit" title="fit all">fit</button>
+      </div>
+
+      <!-- Overlays the canvas rather than replacing it: the terminals stay laid
+           out underneath, so nothing refits when you come home and go back. -->
+      <section id="home" hidden>
+        <header id="home-head">
+          <h1>home</h1>
+          <span id="home-summary"></span>
+        </header>
+        <div id="home-body"></div>
+      </section>
+
+      <div id="disconnected-banner" hidden>lost the server, reconnecting…</div>
+    </main>
+
+    <aside id="drawer" hidden>
+      <header>
+        <h2 id="drawer-title"></h2>
+        <button class="icon" id="drawer-close" title="Close">×</button>
+      </header>
+      <div id="drawer-body"></div>
+    </aside>
+
+    <nav id="rail">
+      <button class="rail-btn drawer-btn" data-drawer="prompts" title="prompts">
+        <svg class="ic" width="19" height="19"><use href="#i-prompt"/></svg><span>prompts</span>
+      </button>
+      <button class="rail-btn drawer-btn" data-drawer="skills" title="skills">
+        <svg class="ic" width="19" height="19"><use href="#i-skill"/></svg><span>skills</span>
+      </button>
+      <button class="rail-btn drawer-btn" data-drawer="secrets" title="secrets">
+        <svg class="ic" width="19" height="19"><use href="#i-key"/></svg><span>secrets</span>
+      </button>
+      <button class="rail-btn drawer-btn" data-drawer="memory" title="memory">
+        <svg class="ic" width="19" height="19"><use href="#i-memory"/></svg><span>memory</span>
+      </button>
+      <button class="rail-btn drawer-btn" data-drawer="connections" title="connections">
+        <svg class="ic" width="19" height="19"><use href="#i-plug"/></svg><span>links</span>
+      </button>
+      <button class="rail-btn drawer-btn" data-drawer="usage" title="usage">
+        <svg class="ic" width="19" height="19"><use href="#i-usage"/></svg><span>usage</span>
+      </button>
+      <button class="rail-btn drawer-btn" data-drawer="history" title="history">
+        <svg class="ic" width="19" height="19"><use href="#i-history"/></svg><span>history</span>
+      </button>
+      <div class="rail-spacer"></div>
+      <button class="rail-btn" id="btn-status" title="show or hide status chips">
+        <svg class="ic" width="19" height="19"><use href="#i-pulse"/></svg><span>status</span>
+      </button>
+      <button class="rail-btn" id="btn-notify" title="notify">
+        <svg class="ic" width="19" height="19"><use href="#i-bell"/></svg><span>notify</span>
+      </button>
+      <span id="conn-dot" title="Connected to the server"></span>
+    </nav>
+  </div>
+
+  <!-- dispatch modal -->
+  <div class="modal-backdrop" id="dispatch-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dispatch-title">
+      <h2 id="dispatch-title">dispatch</h2>
+
+      <span class="field-label">engine</span>
+      <div class="seg-row" id="engine-row" role="radiogroup" aria-label="Engine"></div>
+      <button class="link-more" id="engine-more" aria-expanded="false">more engines</button>
+      <div class="seg-row" id="engine-row-more" role="radiogroup" aria-label="Other engines" hidden></div>
+
+      <div id="auth-field" hidden>
+        <span class="field-label">subscription</span>
+        <div class="seg-row" id="auth-row" role="radiogroup" aria-label="Subscription"></div>
+      </div>
+
+      <div class="field-grid">
+        <label class="field">
+          <span>project</span>
+          <select id="d-project"></select>
+        </label>
+        <label class="field">
+          <span>model</span>
+          <select id="d-model"></select>
+        </label>
+      </div>
+
+      <div class="field-grid">
+        <label class="field" id="d-preset-field">
+          <span>preset</span>
+          <select id="d-preset"></select>
+        </label>
+        <label class="field">
+          <span>reasoning</span>
+          <select id="d-effort"></select>
+        </label>
+      </div>
+      <div id="d-params"></div>
+
+      <label class="field" id="d-task-field">
+        <span>task <em>(empty = interactive)</em></span>
+        <textarea id="d-task" rows="5" spellcheck="false"></textarea>
+      </label>
+
+      <div class="check-row" id="d-flags">
+        <label><input type="checkbox" id="d-skip" checked /> skip permissions</label>
+        <label><input type="checkbox" id="d-env" checked /> load .env</label>
+      </div>
+
+      <label class="field">
+        <span>name <em>(optional)</em></span>
+        <input id="d-name" type="text" maxlength="60" />
+      </label>
+
+      <div class="modal-actions">
+        <button class="ghost" data-action="cancel">cancel</button>
+        <button class="primary" id="d-go">launch</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- project settings modal -->
+  <div class="modal-backdrop" id="settings-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <h2 id="settings-title">project settings</h2>
+      <p class="modal-sub" id="s-project-name"></p>
+
+      <label class="field">
+        <span>env profile</span>
+        <select id="s-profile"></select>
+      </label>
+      <div class="profile-actions">
+        <button class="ghost small" id="s-manage-secrets">manage secrets</button>
+      </div>
+      <p class="drawer-hint">Project .env wins on conflicts.</p>
+
+      <span class="field-label">dispatch defaults</span>
+      <div class="field-grid">
+        <label class="field">
+          <span>engine</span>
+          <select id="s-engine"></select>
+        </label>
+        <label class="field">
+          <span>model</span>
+          <select id="s-model"></select>
+        </label>
+      </div>
+      <div class="field-grid">
+        <label class="field" id="s-auth-field" hidden>
+          <span>subscription</span>
+          <select id="s-auth"></select>
+        </label>
+        <label class="field">
+          <span>reasoning</span>
+          <select id="s-effort"></select>
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button class="ghost" data-action="cancel">cancel</button>
+        <button class="primary" id="s-save">save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- generic preview / editor modal -->
+  <div class="modal-backdrop" id="view-modal" hidden>
+    <div class="modal wide" role="dialog" aria-modal="true">
+      <h2 id="view-title" class="mono"></h2>
+      <pre id="view-pre" class="view-pre" hidden></pre>
+      <textarea id="view-edit" class="view-edit" rows="18" spellcheck="false" hidden></textarea>
+      <div class="modal-actions" id="view-actions"></div>
+    </div>
+  </div>
+
+  <template id="card-template">
+    <article class="card" data-status="running">
+      <header class="card-head">
+        <span class="s-dot" aria-hidden="true"></span>
+        <h3 class="card-title" title="Double-click to rename"></h3>
+        <span class="engine-tag"></span>
+        <span class="env-tag" hidden>env</span>
+        <span class="proj-tag" hidden></span>
+        <span class="badge"></span>
+        <div class="card-buttons">
+          <button class="icon" data-action="restore" title="restart this session" hidden>▶</button>
+          <button class="icon" data-action="kill" title="kill">■</button>
+          <button class="icon danger" data-action="close" title="close">×</button>
+        </div>
+      </header>
+      <div class="note-strip" hidden></div>
+      <div class="term-body"></div>
+      <footer class="card-foot">
+        <span class="foot-main"></span>
+        <span class="elapsed" data-start=""></span>
+      </footer>
+      <div class="resize-handle" aria-hidden="true"></div>
+    </article>
+  </template>
+
+  <template id="viewer-template">
+    <article class="viewer" tabindex="-1">
+      <header class="viewer-head">
+        <img class="fi viewer-icon" alt="" width="16" height="16" />
+        <h3 class="viewer-title"></h3>
+        <span class="viewer-lang"></span>
+        <div class="card-buttons">
+          <button class="icon danger" data-action="close" title="close">×</button>
+        </div>
+      </header>
+      <div class="viewer-body">
+        <pre class="viewer-gutter" aria-hidden="true"></pre>
+        <pre class="viewer-code"><code></code></pre>
+      </div>
+      <footer class="viewer-foot">
+        <span class="viewer-path"></span>
+        <span class="viewer-meta"></span>
+      </footer>
+      <div class="resize-handle" aria-hidden="true"></div>
+    </article>
+  </template>
+
+  <template id="note-template">
+    <article class="note">
+      <header class="note-head">
+        <svg class="ic" width="15" height="15"><use href="#i-note"/></svg>
+        <h3 class="note-title" title="Double-click to rename"></h3>
+        <div class="card-buttons">
+          <button class="icon" data-action="edit" title="edit">✎</button>
+          <button class="icon danger" data-action="close" title="delete">×</button>
+        </div>
+      </header>
+      <div class="note-tools" hidden>
+        <select class="nt-block" title="paragraph style">
+          <option value="p">body</option>
+          <option value="h1">title</option>
+          <option value="h2">heading</option>
+          <option value="h3">subhead</option>
+          <option value="blockquote">quote</option>
+          <option value="pre">code</option>
+        </select>
+        <span class="nt-sep"></span>
+        <button class="nt" data-cmd="bold" title="bold — ctrl+B"><b>B</b></button>
+        <button class="nt" data-cmd="italic" title="italic — ctrl+I"><i>I</i></button>
+        <button class="nt" data-cmd="underline" title="underline — ctrl+U"><u>U</u></button>
+        <button class="nt" data-cmd="strikeThrough" title="strikethrough"><s>S</s></button>
+        <button class="nt" data-cmd="inlineCode" title="inline code">&lt;/&gt;</button>
+        <span class="nt-sep"></span>
+        <button class="nt" data-cmd="insertUnorderedList" title="bulleted list — ctrl+shift+8">•</button>
+        <button class="nt" data-cmd="insertOrderedList" title="numbered list — ctrl+shift+7">1.</button>
+        <button class="nt" data-cmd="outdent" title="outdent — shift+tab">⇤</button>
+        <button class="nt" data-cmd="indent" title="indent — tab">⇥</button>
+        <span class="nt-sep"></span>
+        <button class="nt" data-cmd="createLink" title="link — ctrl+K">↗</button>
+        <button class="nt" data-cmd="removeFormat" title="clear formatting">Tx</button>
+      </div>
+      <div class="note-body">
+        <div class="note-render" spellcheck="false"></div>
+      </div>
+      <footer class="note-foot">
+        <span class="note-meta"></span>
+      </footer>
+      <div class="resize-handle" aria-hidden="true"></div>
+    </article>
+  </template>
+
+  <template id="browser-template">
+    <div class="bcard">
+      <div class="bcard-head">
+        <svg class="ic" width="14" height="14"><use href="#i-globe"/></svg>
+        <span class="bcard-host">browser</span>
+        <span class="elapsed" data-start=""></span>
+        <button class="icon" data-action="open" title="open in your browser" hidden>↗</button>
+      </div>
+      <div class="bcard-shot" hidden><img alt="What the agent's browser shows" /></div>
+      <ul class="bcard-actions"></ul>
+    </div>
+  </template>
+
+  <template id="mini-template">
+    <div class="mini" data-status="running">
+      <div class="mini-head">
+        <span class="s-dot"></span>
+        <span class="mini-type"></span>
+        <span class="elapsed" data-start=""></span>
+      </div>
+      <div class="mini-title"></div>
+    </div>
+  </template>
+
+  <script src="/vendor/marked/marked.min.js"></script>
+  <script src="/vendor/hljs/highlight.min.js"></script>
+  <script src="/vendor/hljs/powershell.min.js"></script>
+  <script src="/vendor/xterm/lib/xterm.js"></script>
+  <script src="/vendor/addon-fit/lib/addon-fit.js"></script>
+  <script src="/vendor/addon-webgl/lib/addon-webgl.js"></script>
+  <!-- Modern glyph widths. Without it xterm measures by Unicode 6 tables while
+       agent TUIs measure by current ones, and every cell after a wide glyph
+       lands one column off. -->
+  <script src="/vendor/addon-unicode11/lib/addon-unicode11.js"></script>
+  <script src="/app.js"></script>
+  <!-- sw.js only steps in when the server is unreachable: it swaps Edge's
+       "can't connect" page for one that waits and reloads into the app. -->
+  <script>
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+  </script>
+</body>
+</html>
