@@ -1,5 +1,5 @@
 {
-  "name": "kiln",
+  "name": "@echoo19/kiln",
   "version": "1.0.0",
   "description": "Terminals and agents as live nodes on an infinite canvas. Claude Code and Codex, on macOS, Linux and Windows.",
   "license": "MIT",
@@ -46,5 +46,16 @@
     "@xterm/xterm": "^6.0.0",
     "express": "^4.21.2",
     "ws": "^8.18.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/echoo19/kiln.git"
+  },
+  "homepage": "https://github.com/echoo19/kiln#readme",
+  "bugs": {
+    "url": "https://github.com/echoo19/kiln/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

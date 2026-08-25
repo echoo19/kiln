@@ -26,14 +26,18 @@ from a URL without asking first.
 ## 2. Install kiln
 
 ```sh
-npm install -g kiln
+npm install -g echoo19/kiln
 kiln --version
 ```
+
+That installs straight from GitHub, which is where kiln lives. (The bare name
+`kiln` on npm belongs to someone else, so the published name, if it is ever
+published, is `@echoo19/kiln`.)
 
 From a clone instead, for development or to run a fork:
 
 ```sh
-git clone <repo> kiln && cd kiln
+git clone https://github.com/echoo19/kiln.git && cd kiln
 npm install
 npm link          # puts `kiln` on PATH
 ```
@@ -301,7 +305,7 @@ READY on its own, and a run note should appear in `<project>/.kiln/runs/`.
 To check the plumbing without spending tokens:
 
 ```sh
-cd "$(npm root -g)/kiln" && npm test
+cd "$(npm root -g)/@echoo19/kiln" && npm test
 ```
 
 ## 14. When something is wrong

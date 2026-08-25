@@ -36,7 +36,7 @@ You need [Node 20+](https://nodejs.org) and at least one agent CLI, either
 [Claude Code](https://claude.com/claude-code) or Codex. Then:
 
 ```
-npm install -g kiln
+npm install -g echoo19/kiln
 kiln
 ```
 
