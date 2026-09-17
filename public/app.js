@@ -313,6 +313,11 @@ function connect() {
         if (i >= 0) state.projects[i] = msg.project;
         break;
       }
+      // The project folder changed on disk — a pull, an agent's edit, a rename.
+      // Only the panel's own project is worth a re-read.
+      case 'fsChanged':
+        if (msg.projectId === state.selectedProject) renderFilesPanel();
+        break;
       case 'projectRemoved':
         state.projects = state.projects.filter((p) => p.id !== msg.projectId);
         localStorage.removeItem(camKey(msg.projectId));
@@ -2230,29 +2235,92 @@ function fileIconSrc(name, isDir, open) {
 }
 
 // ---- files panel (always visible, left side)
-function renderFilesPanel() {
+// The tree is a view of the folder, not a snapshot of it: the server watches
+// each project and sends `fsChanged`, and the panel re-reads the folders it has
+// open. Which folders those are lives outside the DOM so a rebuild — or a
+// reload — puts the tree back the way it was found.
+const filesOpen = new Set();   // full paths of expanded directories
+let filesToken = 0;            // guards against an older rebuild landing last
+let filesPanelProject = null;  // which project the open-set currently describes
+
+// The server is the only one that knows which platform these paths are from.
+function joinPath(dir, name) {
+  return `${dir}${dir.includes('\\') ? '\\' : '/'}${name}`;
+}
+
+function filesOpenKey(p) { return `kiln.filesOpen.${p.id}`; }
+
+function loadFilesOpen(p) {
+  filesOpen.clear();
+  try {
+    for (const d of JSON.parse(localStorage.getItem(filesOpenKey(p)) || '[]')) filesOpen.add(d);
+  } catch { /* nothing remembered */ }
+}
+
+function saveFilesOpen(p) {
+  try { localStorage.setItem(filesOpenKey(p), JSON.stringify([...filesOpen])); }
+  catch { /* quota; the tree still works, it just forgets */ }
+}
+
+async function listDir(dir) {
+  return (await api(`/api/fs/list?path=${encodeURIComponent(dir)}`)).entries;
+}
+
+// Builds into a detached <ul>, so a slow folder never blanks the panel.
+async function buildTree(dir, token) {
+  const ul = document.createElement('ul');
+  const entries = await listDir(dir);
+  for (const e of entries) {
+    const full = joinPath(dir, e.name);
+    const li = treeNode(dir, e);
+    if (e.dir && filesOpen.has(full)) {
+      // A folder that is open stays open, and its children are read too. If it
+      // has gone away since, drop it rather than failing the whole rebuild.
+      try {
+        const sub = await buildTree(full, token);
+        if (token !== filesToken) return ul;
+        li.classList.add('open');
+        $('.fi', li).src = fileIconSrc(e.name, true, true);
+        li.appendChild(sub);
+      } catch { filesOpen.delete(full); }
+    }
+    ul.appendChild(li);
+  }
+  return ul;
+}
+
+async function renderFilesPanel() {
   const body = $('#files-body');
   const label = $('#files-project');
   const p = project(state.selectedProject);
-  body.innerHTML = '';
   label.textContent = p ? p.name : '';
   label.title = p ? p.path : '';
+  const token = ++filesToken;
   if (!p) {
     body.innerHTML = '<p class="panel-hint">Pick a project up top.</p>';
     return;
   }
-  const tree = document.createElement('ul');
-  tree.className = 'tree';
-  body.appendChild(tree);
-  api(`/api/fs/list?path=${encodeURIComponent(p.path)}`)
-    .then((j) => j.entries.forEach((e) => tree.appendChild(treeNode(p.path, e))))
-    .catch((err) => { body.innerHTML = `<p class="panel-hint">${err.message}</p>`; });
+  if (filesPanelProject !== p.id) {
+    filesPanelProject = p.id;
+    loadFilesOpen(p);
+    body.innerHTML = '';
+  }
+  const scroll = body.scrollTop;
+  try {
+    const tree = await buildTree(p.path, token);
+    tree.className = 'tree';
+    if (token !== filesToken) return;
+    body.replaceChildren(tree);
+    body.scrollTop = scroll;
+  } catch (err) {
+    if (token !== filesToken) return;
+    body.innerHTML = `<p class="panel-hint">${err.message}</p>`;
+  }
 }
 $('#files-refresh').addEventListener('click', renderFilesPanel);
 
 function treeNode(parentDir, entry) {
-  // The server is the only one that knows which platform these paths are from.
-  const full = `${parentDir}${parentDir.includes('\\') ? '\\' : '/'}${entry.name}`;
+  const full = joinPath(parentDir, entry.name);
   const li = document.createElement('li');
   const row = document.createElement('div');
   row.className = 'row';
@@ -2264,23 +2332,29 @@ function treeNode(parentDir, entry) {
   row.title = full;
   li.appendChild(row);
   if (entry.dir) {
-    let loaded = false;
     row.addEventListener('click', async () => {
-      const open = li.classList.toggle('open');
-      $('.fi', row).src = fileIconSrc(entry.name, true, open);
-      if (open && !loaded) {
-        loaded = true;
-        try {
-          const j = await api(`/api/fs/list?path=${encodeURIComponent(full)}`);
-          const ul = document.createElement('ul');
-          j.entries.forEach((k) => ul.appendChild(treeNode(full, k)));
-          li.appendChild(ul);
-        } catch (err) {
-          loaded = false;
-          li.classList.remove('open');
-          $('.fi', row).src = fileIconSrc(entry.name, true, false);
-          alert(err.message);
-        }
+      const open = !li.classList.contains('open');
+      const p = project(state.selectedProject);
+      if (!open) {
+        li.classList.remove('open');
+        $('.fi', row).src = fileIconSrc(entry.name, true, false);
+        li.querySelector('ul')?.remove();
+        // Collapsing a folder collapses what was open inside it, but only in
+        // the DOM — reopening it should find the same shape.
+        filesOpen.delete(full);
+        if (p) saveFilesOpen(p);
+        return;
+      }
+      try {
+        const sub = await buildTree(full, filesToken);
+        li.querySelector('ul')?.remove();
+        li.appendChild(sub);
+        li.classList.add('open');
+        $('.fi', row).src = fileIconSrc(entry.name, true, true);
+        filesOpen.add(full);
+        if (p) saveFilesOpen(p);
+      } catch (err) {
+        alert(err.message);
       }
     });
   } else {

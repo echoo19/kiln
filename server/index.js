@@ -126,10 +126,15 @@ writeHooksFile();
 const STATE_FILE = path.join(DATA, 'state.json');
 const HISTORY_FILE = path.join(DATA, 'history.json');
 let projects = [];
+// Removing a project drops its record, but the folder on disk is untouched and
+// so is the profile it was wired to — re-adding the same path should not ask
+// again. Settings are remembered per lowercased path, outliving the record.
+let projectPrefs = {};
 (() => {
   try {
     const raw = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
     if (Array.isArray(raw.projects)) projects = raw.projects;
+    if (raw.projectPrefs && typeof raw.projectPrefs === 'object') projectPrefs = raw.projectPrefs;
   } catch { /* first run */ }
   // migrate v1 state file location
   try {
@@ -139,10 +144,31 @@ let projects = [];
       fs.unlinkSync(path.join(ROOT, 'state.json'));
     }
   } catch { /* ignore */ }
+  // Projects registered before prefs existed have never been remembered, so
+  // the first removal would still lose their profile. Backfill on boot.
+  for (const p of projects) if (!projectPrefs[prefKey(p.path)]) rememberProjectPrefs(p);
 })();
 function saveState() {
-  try { fs.writeFileSync(STATE_FILE, JSON.stringify({ projects }, null, 2)); }
+  try { fs.writeFileSync(STATE_FILE, JSON.stringify({ projects, projectPrefs }, null, 2)); }
   catch (err) { console.error('state save failed:', err.message); }
+}
+function prefKey(dir) { return String(dir || '').toLowerCase(); }
+// Called on every change to a project's settings and once more as it is
+// removed, so what comes back on a re-add is the last thing that was true.
+function rememberProjectPrefs(p) {
+  if (!p || !p.path) return;
+  projectPrefs[prefKey(p.path)] = {
+    envProfile: p.envProfile || null,
+    defaults: p.defaults || null,
+  };
+}
+function restoreProjectPrefs(p) {
+  const pref = projectPrefs[prefKey(p.path)];
+  if (!pref) return;
+  if (pref.envProfile && fs.existsSync(path.join(PROFILES_DIR, `${pref.envProfile}.env`))) {
+    p.envProfile = pref.envProfile;
+  }
+  if (pref.defaults) p.defaults = pref.defaults;
 }
 function nextProjectColor() {
   const used = new Set(projects.map((p) => p.color));
@@ -1064,6 +1090,57 @@ function broadcast(msg, except) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// File watching
+// ---------------------------------------------------------------------------
+// The files panel mirrors a project folder, so a pull, an agent’s edit or a
+// rename has to land there without anyone pressing refresh. One recursive
+// watcher per project; the client re-reads only the folders it has open.
+const WATCH_NOISE =
+  /(^|[\\/])(node_modules|\.git|\.next|\.turbo|\.cache|\.venv|__pycache__|dist|build|out|coverage|\.DS_Store)([\\/]|$)/i;
+const watchers = new Map(); // projectId -> { watcher, path, timer }
+
+function stopWatcher(pid) {
+  const w = watchers.get(pid);
+  if (!w) return;
+  watchers.delete(pid);
+  if (w.timer) clearTimeout(w.timer);
+  try { w.watcher.close(); } catch { /* already gone */ }
+}
+
+function startWatcher(p) {
+  let watcher;
+  try {
+    // Not persistent: a watcher must never be the reason the process stays up.
+    watcher = fs.watch(p.path, { recursive: true, persistent: false });
+  } catch (err) {
+    console.log(`watch ${p.name}: ${err.message}`);
+    return;
+  }
+  const w = { watcher, path: p.path.toLowerCase(), timer: null };
+  watchers.set(p.id, w);
+  watcher.on('error', () => stopWatcher(p.id));
+  // A pull touches hundreds of files. Coalesce into one nudge per 250ms window,
+  // counted from the first event — extending instead would let a long-running
+  // write keep pushing the refresh out of reach.
+  watcher.on('change', (_evt, name) => {
+    if (WATCH_NOISE.test(typeof name === 'string' ? name : '')) return;
+    if (w.timer) return;
+    w.timer = setTimeout(() => {
+      w.timer = null;
+      broadcast({ type: 'fsChanged', projectId: p.id });
+    }, 250);
+  });
+}
+
+function syncWatchers() {
+  for (const [pid, w] of [...watchers]) {
+    const p = project(pid);
+    if (!p || p.path.toLowerCase() !== w.path) stopWatcher(pid);
+  }
+  for (const p of projects) if (!watchers.has(p.id)) startWatcher(p);
+}
+
 wss.on('connection', (ws) => {
   ws.send(JSON.stringify({
     type: 'init',
@@ -1175,9 +1252,11 @@ wss.on('connection', (ws) => {
           path: dir,
           color: nextProjectColor(),
         };
+        restoreProjectPrefs(p);
         projects.push(p);
         seedMemory(p);
         saveState();
+        syncWatchers();
         broadcast({ type: 'projectAdded', project: p });
         break;
       }
@@ -1197,6 +1276,7 @@ wss.on('connection', (ws) => {
         } else {
           p.defaults = null;
         }
+        rememberProjectPrefs(p);
         saveState();
         broadcast({ type: 'projectUpdated', project: p });
         break;
@@ -1207,6 +1287,7 @@ wss.on('connection', (ws) => {
       case 'removeProject': {
         const pid = msg.projectId;
         if (!project(pid)) break;
+        rememberProjectPrefs(project(pid));
         for (const s of [...sessions.values()]) {
           if (s.projectId !== pid) continue;
           if (s.proc) {
@@ -1224,6 +1305,7 @@ wss.on('connection', (ws) => {
         projects = projects.filter((p) => p.id !== pid);
         saveState();
         saveSessions();
+        syncWatchers();
         broadcast({ type: 'projectRemoved', projectId: pid });
         break;
       }
@@ -1929,6 +2011,11 @@ app.delete('/api/profiles/:name', (req, res) => {
   try {
     fs.unlinkSync(path.join(PROFILES_DIR, `${slug}.env`));
     for (const p of projects) if (p.envProfile === slug) p.envProfile = null;
+    // A remembered profile that no longer exists would come back on a re-add
+    // as a name that resolves to nothing.
+    for (const pref of Object.values(projectPrefs)) {
+      if (pref.envProfile === slug) pref.envProfile = null;
+    }
     saveState();
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -2027,6 +2114,7 @@ server.listen(PORT, '127.0.0.1', () => {
   console.log('engines: ' + Object.entries(engines).map(([k, v]) => `${k}=${v}`).join(' '));
   const offline = [...sessions.values()].filter((s) => s.status === 'offline').length;
   if (offline) console.log(`restored ${offline} card${offline === 1 ? '' : 's'} from the last run`);
+  syncWatchers();
 });
 
 // Also hold ::1 on the same port so `localhost` (which some systems resolve to
