@@ -57,6 +57,8 @@ hands.
 - Drag cards around, resize them, scroll to zoom. Terminals stay live.
 - The rail on the right holds your prompts, skills, tokens, memory,
   connections, usage and history.
+- Agents on the same project know about each other: each is told who else is
+  there, and can run `kiln who` and `kiln msg <codename> "..."` from its card.
 - Closing the window leaves your agents running. `kiln` brings it back.
 
 ## Where your things live

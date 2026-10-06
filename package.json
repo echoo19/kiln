@@ -29,7 +29,7 @@
   "scripts": {
     "start": "node bin/kiln.js server",
     "dev": "node server/index.js",
-    "test": "node test/smoke.js"
+    "test": "node test/smoke.js && node test/peers.js"
   },
   "keywords": [
     "agents",

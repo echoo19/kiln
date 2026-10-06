@@ -25,6 +25,10 @@ function help() {
   kiln open         open the canvas, without starting anything
   kiln --version    print the version
 
+  from inside a card:
+  kiln who [--all]            other agents live on this project (or everywhere)
+  kiln msg <codename> "..."   send one of them a message (or pipe it in)
+
   KILN_PORT             port to listen on (default ${PORT})
   KILN_PROJECTS_ROOT    folder the project picker lists (default ~/projects)
   KILN_DATA             where state lives (default ~/.kiln)
@@ -60,7 +64,76 @@ async function waitFor(ms) {
   return false;
 }
 
+// ---------------------------------------------------------------------------
+// From inside a card: who else is here, and a message to one of them. A card
+// proves it is one with KILN_SESSION, which only a pty kiln spawned carries.
+// ---------------------------------------------------------------------------
+function api(method, route, body) {
+  return new Promise((resolve) => {
+    const data = body ? JSON.stringify(body) : null;
+    const req = http.request({
+      host: '127.0.0.1', port: PORT, path: route, method, timeout: 20_000,
+      headers: data ? { 'content-type': 'application/json', 'content-length': Buffer.byteLength(data) } : {},
+    }, (res) => {
+      let raw = '';
+      res.on('data', (c) => { raw += c; });
+      res.on('end', () => { try { resolve(JSON.parse(raw)); } catch { resolve({ ok: false, error: `HTTP ${res.statusCode}` }); } });
+    });
+    req.on('error', (err) => resolve({ ok: false, error: err.code || err.message }));
+    req.on('timeout', () => { req.destroy(); resolve({ ok: false, error: 'timeout' }); });
+    if (data) req.write(data);
+    req.end();
+  });
+}
+function die(msg) { console.error(`kiln: ${msg}`); process.exit(1); }
+const WHY = {
+  unknown_session: 'this shell is not a kiln card',
+  no_such_agent: 'no live agent by that name (try: kiln who --all)',
+  self: 'that is you',
+  empty: 'nothing to send',
+  too_long: 'message is over 8000 characters',
+  ECONNREFUSED: 'the kiln server is not running',
+};
+function readStdin() {
+  if (process.stdin.isTTY) return Promise.resolve('');
+  return new Promise((resolve) => {
+    let s = '';
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', (c) => { s += c; });
+    process.stdin.on('end', () => resolve(s));
+  });
+}
+
+async function who(argv) {
+  const all = argv.includes('--all');
+  const res = await api('GET', `/api/peers?sessionId=${encodeURIComponent(SESSION)}${all ? '&all=1' : ''}`);
+  if (!res.ok) die(WHY[res.error] || res.error || 'failed');
+  if (!res.peers.length) {
+    console.log(all ? 'Nobody else is running.' : `Nobody else is on ${res.project || 'this project'} right now.`);
+    return;
+  }
+  for (const p of res.peers) {
+    const where = all && p.project ? ` [${p.project}]` : '';
+    console.log(`${p.codename}${where} — ${p.status}, ${p.minutes}m, ${[p.engine, p.model].filter(Boolean).join(' ')}`);
+    console.log(`    ${p.task || 'no task recorded'}`);
+  }
+}
+
+async function msg(argv) {
+  const [to, ...rest] = argv;
+  if (!to) die('usage: kiln msg <codename> "message"  (or pipe the message in)');
+  const text = (rest.join(' ') || await readStdin()).trim();
+  const res = await api('POST', '/api/msg', { sessionId: SESSION, to, text });
+  if (!res.ok) die(WHY[res.error] || res.error || 'failed');
+  console.log(`sent to ${res.to}`);
+}
+const SESSION = process.env.KILN_SESSION;
+
 (async () => {
+  if (args[0] === 'who' || args[0] === 'msg') {
+    if (!SESSION) die('no KILN_SESSION — run this from inside a kiln card');
+    return args[0] === 'who' ? who(args.slice(1)) : msg(args.slice(1));
+  }
   if (args.includes('-h') || args.includes('--help') || args[0] === 'help') return help();
   if (args.includes('-v') || args.includes('--version')) {
     return console.log(require(path.join(ROOT, 'package.json')).version);
